@@ -5,7 +5,7 @@ const drinkFromTheFirehose = require('./socket').drinkFromTheFirehose;
 // clean things up on exit?
 const onUncaughtException = (err) => {
     let msg;
-    if (_isString(err)) {
+    if (typeof err == 'string' || err instanceof String) {
         msg = err;
     }
     else if (err instanceof Error) {

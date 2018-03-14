@@ -26,7 +26,7 @@ const handshakeCommand = () => {
 const liveStats = {
     epochDiffInSeconds: 0
 };
-let socket, abortFlag, startNewConnection;
+let socket, abortFlag, startNewConnection, partialLine = "";
 const drinkFromTheFirehose = () => {
     logger.info(`[${config.app.name}][Firehouse] Starting up socket`);
     createSocket();
@@ -79,18 +79,22 @@ const createSocket = () => {
             abortFlag = true;
             socket.end();
         }
-        else if (checkFirstLine) {
-            if (data.startsWith('Error:')) {
-                logger.error(`[${config.app.name}][TLS Data] Error connecting : ${data}`);
-                abortFlag = true;
-                socket.end();
-            }
-            else {
+        if (partialLine) {
+            data = partialLine + data;
+        }
+        var lines = data.split(/\r?\n/);
+        partialLine = data.endsWith("\n", 1) ? "" : lines.pop();
+        lines.forEach(line => {
+            if (checkFirstLine) {
+                if (line.startsWith('Error:')) {
+                    logger.error(`[${config.app.name}][TLS Data] Error connecting : ${data}`);
+                    abortFlag = true;
+                    socket.end();
+                }
                 checkFirstLine = false;
             }
-        }
-        else {
-            const dataAsJson = JSON.parse(data);
+
+            const dataAsJson = JSON.parse(line);
 
             if (config.socket.pitrCheck) {
                 if (pitrCheckCounter === config.socket.pitrCheckCounterMax) {
@@ -116,7 +120,7 @@ const createSocket = () => {
                     dataSampleCheckCounter += 1;
                 }
             }
-        }
+        });
     });
     socket.on('error', (err) => {
         logger.error(`[${config.app.name}][TLS Error] Exception caught!`, err);
